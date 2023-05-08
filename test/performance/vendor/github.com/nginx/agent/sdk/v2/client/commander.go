@@ -228,6 +228,14 @@ func (c *commander) Upload(ctx context.Context, cfg *proto.NginxConfig, messageI
 	payloadChecksum := checksum.Checksum(payload)
 	chunks := checksum.Chunk(payload, c.chunkSize)
 
+	if log.IsLevelEnabled(log.TraceLevel) {
+		for _, d := range cfg.DirectoryMap.Directories {
+			for _, f := range d.Files {
+				log.Tracef("Uploading file %s/%s with size %d", d.Name, f.Name, f.Size_)
+			}
+		}
+	}
+
 	return sdk.WaitUntil(c.ctx, c.backoffSettings.initialInterval, c.backoffSettings.maxInterval, c.backoffSettings.sendMaxTimeout, func() error {
 		sender, err := c.client.Upload(c.ctx)
 		if err != nil {
