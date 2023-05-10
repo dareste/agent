@@ -626,7 +626,7 @@ func AddAuxfileToNginxConfig(
 const (
 	plusAPIDirective = "api"
 	ossAPIDirective  = "stub_status"
-	apiFormat        = "http://%s%s"
+	apiFormat        = "%s://%s%s"
 )
 
 func parseStatusAPIEndpoints(parent *crossplane.Directive, current *crossplane.Directive) ([]string, []string) {
@@ -641,24 +641,30 @@ func parseStatusAPIEndpoints(parent *crossplane.Directive, current *crossplane.D
 		if locChild.Directive != plusAPIDirective && locChild.Directive != ossAPIDirective {
 			continue
 		}
-		host := parseServerHost(parent)
+		protocol, host := parseServerHost(parent)
 		path := parseLocationPath(current)
 		switch locChild.Directive {
 		case plusAPIDirective:
-			plusUrls = append(plusUrls, fmt.Sprintf(apiFormat, host, path))
+			plusUrls = append(plusUrls, fmt.Sprintf(apiFormat, protocol, host, path))
 		case ossAPIDirective:
-			ossUrls = append(ossUrls, fmt.Sprintf(apiFormat, host, path))
+			ossUrls = append(ossUrls, fmt.Sprintf(apiFormat, protocol, host, path))
 		}
 	}
 	return plusUrls, ossUrls
 }
 
-func parseServerHost(parent *crossplane.Directive) string {
+func parseServerHost(parent *crossplane.Directive) (string, string) {
+	protocol := "http"
 	listenPort := "80"
 	serverName := "localhost"
 	for _, dir := range parent.Block {
 		switch dir.Directive {
 		case "listen":
+			for _, arg := range dir.Args {
+				if arg == "ssl" {
+					protocol = "https"
+				}
+			}
 			host, port, err := net.SplitHostPort(dir.Args[0])
 			if err == nil {
 				if host != "*" && host != "::" {
@@ -680,7 +686,7 @@ func parseServerHost(parent *crossplane.Directive) string {
 			serverName = dir.Args[0]
 		}
 	}
-	return fmt.Sprintf("%s:%s", serverName, listenPort)
+	return protocol, fmt.Sprintf("%s:%s", serverName, listenPort)
 }
 
 func isPort(value string) bool {
